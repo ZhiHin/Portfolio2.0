@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, MotionValue, useScroll, useTransform } from 'framer-motion'
 import { ArrowUp, ArrowUpRight } from 'lucide-react'
 import { SplineSceneBasic } from '@/components/ui/demo'
 
@@ -91,29 +91,67 @@ function AnimatedChar({ char, index, total, progress }: AnimatedCharProps) {
   )
 }
 
+function AnimatedWord({
+  word,
+  index,
+  total,
+  progress,
+}: {
+  word: string
+  index: number
+  total: number
+  progress: MotionValue<number>
+}) {
+  const start = index / total
+  const end = (index + 1) / total
+
+  const opacity = useTransform(progress, [start, end], [0.25, 1])
+
+  return (
+    <motion.span style={{ opacity }} className="inline-block">
+      {word}{'\u00A0'}
+    </motion.span>
+  )
+}
+
 function AnimatedText({ text }: { text: string }) {
   const ref = useRef<HTMLParagraphElement>(null)
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start 0.8', 'end 0.2'],
   })
-  const chars = text.split('')
+
+  // Split into paragraphs (so \n\n still creates a visual break),
+  // then flatten to words while keeping a global running index
+  // so the fade progresses smoothly across the whole block.
+  const paragraphs = text.split('\n\n').map((p) => p.split(/\s+/).filter(Boolean))
+  const totalWords = paragraphs.reduce((sum, p) => sum + p.length, 0)
+
+  let wordIndex = 0
 
   return (
-    <p
+    <div
       ref={ref}
       className="mx-auto max-w-[560px] text-center text-[clamp(1rem,2vw,1.35rem)] font-medium leading-relaxed text-[#D7E2EA]"
     >
-      {chars.map((char, index) => (
-        <AnimatedChar
-          key={`${char}-${index}`}
-          char={char}
-          index={index}
-          total={chars.length}
-          progress={scrollYProgress}
-        />
+      {paragraphs.map((words, pIndex) => (
+        <p key={pIndex} className={pIndex > 0 ? 'mt-4' : ''}>
+          {words.map((word, i) => {
+            const currentIndex = wordIndex
+            wordIndex += 1
+            return (
+              <AnimatedWord
+                key={`${word}-${pIndex}-${i}`}
+                word={word}
+                index={currentIndex}
+                total={totalWords}
+                progress={scrollYProgress}
+              />
+            )
+          })}
+        </p>
       ))}
-    </p>
+    </div>
   )
 }
 
@@ -128,8 +166,8 @@ function HeroSection() {
             </a>
           </li>
           <li>
-            <a className="transition-opacity duration-200 hover:opacity-70" href="#services">
-              Services
+            <a className="transition-opacity duration-200 hover:opacity-70" href="#resume">
+              Resume
             </a>
           </li>
           <li>
@@ -252,7 +290,9 @@ function MarqueeSection() {
 
 function AboutSection() {
   const paragraph =
-    "With more than five years of experience in design, i focus on branding, web design, and user experience, i truly enjoy working with businesses that aim to stand out and present their best image. Let's build something incredible together!"
+    "I'm a Software Engineer who loves transforming ideas into meaningful digital experiences." +
+    "I enjoy building applications, experimenting with new technologies, and continuously learning to become a better developer." +
+    "With a passion for problem-solving and software development, I focus on creating solutions that are not only functional but also intuitive and enjoyable to use. When I'm not coding, you can find me exploring new technologies, reading tech content, or traveling to discover new experiences."
 
   return (
     <section
@@ -329,65 +369,169 @@ function AboutSection() {
   )
 }
 
-const services = [
+type EducationItem = {
+  title: string
+  subtitle: string
+  period: string
+  detail: string
+}
+
+type ExperienceItem = {
+  title: string
+  subtitle: string
+  period?: string
+  detail?: string
+}
+
+type LanguageItem = {
+  language: string
+  level: string
+}
+
+type ResumeSection =
+  | { number: string; name: string; type: 'education'; items: EducationItem[] }
+  | { number: string; name: string; type: 'experience'; items: ExperienceItem[] }
+  | { number: string; name: string; type: 'tags'; items: string[] }
+  | { number: string; name: string; type: 'languages'; items: LanguageItem[] }
+
+const resumeData: ResumeSection[] = [
   {
     number: '01',
-    name: '3D Modeling',
-    description:
-      'Creation of detailed objects, characters, or environments tailored to specific client needs, ideal for games, products, and visualizations.',
+    name: 'Education',
+    type: 'education',
+    items: [
+      {
+        title: 'Bachelor of Software Engineering',
+        subtitle: 'Tunku Abdul Rahman University of Management & Technology (TARUMT)',
+        period: '2023 - 2025',
+        detail: 'CGPA: 3.73',
+      },
+      {
+        title: 'Diploma in Computer Science',
+        subtitle: 'Tunku Abdul Rahman University of Management & Technology (TARUMT)',
+        period: '2021 - 2023',
+        detail: 'CGPA: 3.57',
+      },
+    ],
   },
   {
     number: '02',
-    name: 'Rendering',
-    description:
-      'High-quality, photorealistic renders that showcase designs with custom lighting, textures, and materials to bring concepts to life.',
+    name: 'Work Experience',
+    type: 'experience',
+    items: [
+      { title: 'Software Tester (Intern)', subtitle: '81GROUP Sdn Bhd' },
+      { title: 'Content Writer & Graphic Designer (Part Time)', subtitle: 'QC Fixer Solutions' },
+      { title: 'Software Engineer (Intern)', subtitle: 'Theta Service Partner Sdn Bhd' },
+      { title: 'Software Engineer (Permanent)', subtitle: 'Theta Service Partner Sdn Bhd' },
+    ],
   },
   {
     number: '03',
-    name: 'Motion Design',
-    description:
-      'Dynamic animations and motion graphics that add energy and storytelling to brands, products, and digital experiences.',
+    name: 'Skills',
+    type: 'tags',
+    items: [
+      'Adaptability',
+      'Fast Learner',
+      'Teamwork',
+      'Time Management',
+      'Leadership',
+      'Effective Communication',
+      'Critical Thinking',
+    ],
   },
   {
     number: '04',
-    name: 'Branding',
-    description:
-      'Crafting cohesive visual identities -- from logos to full brand systems -- that communicate a clear and memorable presence.',
+    name: 'Technical Skills',
+    type: 'tags',
+    items: ['Java', 'HTML', 'CSS', 'Tailwind CSS', 'JavaScript', 'TypeScript', 'REST API'],
   },
   {
     number: '05',
-    name: 'Web Design',
-    description:
-      'Designing clean, modern, and conversion-focused websites with attention to layout, typography, and user experience.',
+    name: 'Languages',
+    type: 'languages',
+    items: [
+      { language: 'English', level: 'Fluent' },
+      { language: 'Chinese', level: 'Fluent' },
+      { language: 'Malay', level: 'Conversational' },
+      { language: 'Cantonese', level: 'Fluent' },
+    ],
   },
 ]
 
-function ServicesSection() {
+function ResumeSection() {
   return (
     <section
-      id="services"
+      id="resume"
       className="rounded-t-[40px] bg-white px-5 py-20 sm:rounded-t-[50px] sm:px-8 sm:py-24 md:rounded-t-[60px] md:px-10 md:py-32"
     >
       <h2 className="mb-16 text-center text-[clamp(3rem,12vw,160px)] font-black uppercase leading-none tracking-tight text-[#0C0C0C] sm:mb-20 md:mb-28">
-        Services
+        Resume
       </h2>
       <div className="mx-auto max-w-5xl border-y border-[rgba(12,12,12,0.15)]">
-        {services.map((service, index) => (
+        {resumeData.map((section, index) => (
           <FadeIn
-            key={service.number}
+            key={section.number}
             delay={index * 0.1}
             className="flex items-start gap-5 border-b border-[rgba(12,12,12,0.15)] py-8 sm:gap-8 sm:py-10 md:py-12"
           >
             <p className="text-[clamp(3rem,10vw,140px)] font-black leading-none tracking-tight text-[#0C0C0C]">
-              {service.number}
+              {section.number}
             </p>
-            <div className="space-y-3 pt-2 sm:space-y-4">
+            <div className="w-full space-y-5 pt-2 sm:space-y-6">
               <h3 className="text-[clamp(1rem,2.2vw,2.1rem)] font-medium uppercase leading-none text-[#0C0C0C]">
-                {service.name}
+                {section.name}
               </h3>
-              <p className="max-w-2xl text-[clamp(0.85rem,1.6vw,1.25rem)] font-light leading-relaxed text-[#0C0C0C] opacity-60">
-                {service.description}
-              </p>
+
+              {/* Education / Work Experience */}
+              {(section.type === 'education' || section.type === 'experience') && (
+                <div className="space-y-4 sm:space-y-5">
+                  {section.items.map((item, i) => (
+                    <div key={i}>
+                      <p className="text-[clamp(0.9rem,1.7vw,1.35rem)] font-medium leading-snug text-[#0C0C0C]">
+                        {item.title}
+                      </p>
+                      <p className="text-[clamp(0.8rem,1.5vw,1.1rem)] font-light leading-relaxed text-[#0C0C0C] opacity-60">
+                        {item.subtitle}
+                      </p>
+                      {(item.period || item.detail) && (
+                        <p className="text-[clamp(0.75rem,1.4vw,1rem)] font-light leading-relaxed text-[#0C0C0C] opacity-40">
+                          {[item.period, item.detail].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Skills / Technical Skills */}
+              {section.type === 'tags' && (
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  {section.items.map((skill, i) => (
+                    <span
+                      key={i}
+                      className="rounded-full border border-[rgba(12,12,12,0.15)] px-4 py-1.5 text-[clamp(0.75rem,1.3vw,0.95rem)] font-light text-[#0C0C0C] opacity-70 sm:px-5 sm:py-2"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Languages */}
+              {section.type === 'languages' && (
+                <div className="flex flex-wrap gap-x-8 gap-y-3 sm:gap-x-10">
+                  {section.items.map((lang, i) => (
+                    <div key={i}>
+                      <p className="text-[clamp(0.9rem,1.7vw,1.35rem)] font-medium leading-snug text-[#0C0C0C]">
+                        {lang.language}
+                      </p>
+                      <p className="text-[clamp(0.75rem,1.4vw,1rem)] font-light leading-relaxed text-[#0C0C0C] opacity-50">
+                        {lang.level}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </FadeIn>
         ))}
@@ -557,7 +701,7 @@ function App() {
       <HeroSection />
       <MarqueeSection />
       <AboutSection />
-      <ServicesSection />
+      <ResumeSection />
       <ProjectsSection />
       <ScrollToTopButton />
     </main>
